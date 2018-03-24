@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+import os 
+
+CHAMP = "Zed"
+for NUM in range(5): 
+    IMG = "{}_{}.jpg".format(CHAMP, str(NUM))
+    CMD = "wget https://ddragon.leagueoflegends.com/cdn/img/champion/splash/{}".format(IMG)
+
+    os.popen(CMD)
+
+
