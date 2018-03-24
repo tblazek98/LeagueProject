@@ -60,6 +60,8 @@ for thing in ITEM_LIST["data"].keys():
 # Parse through items and add data to CHAMP_SET
 CHAMPION_LIST = open('champion.json')
 CHAMPION_LIST = json.loads(CHAMPION_LIST.read())
+for stat in CHAMPION_LIST["data"]["Aatrox"]["stats"].keys():
+    CURR_STATS[stat] = 0
 for champ in CHAMPION_LIST["data"].keys():
     if champ == "MonkeyKing":
         CHAMPION_LIST ["Wukong"] = CHAMPION_LIST["data"][champ]
@@ -99,10 +101,16 @@ class InputBox:
                             self.text = ''
                             self.suggestions = []
                     elif (self.type.startswith("champion")):
-                        if self.text in CHAMPION_LIST["data"].keys():
-                            self.prev = self.text
-                            self.text = ''
-                            self.suggestions = []
+                        for champ in CHAMPION_LIST["data"]:
+                            if self.text == CHAMPION_LIST["data"][champ]["name"]:
+                                for stat in CHAMPION_LIST["data"][champ]["stats"].keys():
+                                    CURR_STATS[stat] += CHAMPION_LIST["data"][champ]["stats"][stat]
+                                if self.prev != '':
+                                    for stat,value in CHAMPION_LIST["data"][self.prev]["stats"].items():
+                                        CURR_STATS[stat] -= value
+                                self.prev = champ
+                                self.text = ''
+                                self.suggestions = []
                 elif event.key == pygame.K_BACKSPACE:
                     self.text = self.text[:-1]
                     self.suggestions = []
@@ -118,7 +126,10 @@ class InputBox:
                         self.suggestions = []
                 elif 97 <= event.key <= 122 or event.key == 39 or event.key == 32: #If letter, space, or '
                     self.text += event.unicode
-                self.suggestions = [ string for string in self.set.keys() if string.startswith(self.text) ]
+                if self.type.startswith("champion"):
+                    self.suggestions = [ self.set["data"][thing]["name"] for thing in self.set["data"] if self.set["data"][thing]["name"].startswith(self.text) ]
+                else:
+                    self.suggestions = [ string for string in self.set.keys() if string.startswith(self.text) ]
                 self.suggestions = sorted(self.suggestions)
                 self.txt_surface = FONT.render(self.text, True, self.color)
 
@@ -202,7 +213,7 @@ def main():
                 display_icon(item, gameDisplay, 0, 0)
             else:
                 display_icon(item, gameDisplay, 0, (num) * (ITEM_HEIGHT +30))
-        display_champ_icon(champ_box.prev, TYPE_BOX_X + search_box.rect.w + 10, TYPE_BOX_Y - 13)
+        display_champ_icon(champ_box.prev, TYPE_BOX_X + search_box.rect.w + 30, TYPE_BOX_Y - 13)
         # Displays Gold
         message_display(gameDisplay, "Total Gold Cost", str(totalGold), 10, D_HEIGHT-30,color=gold, orientation="left")
         # Displays labels
@@ -237,11 +248,13 @@ def display_icon(item, screen, x, y):
 
 def display_champ_icon(champ, x, y):
     if (os.path.isfile(CURR_DIR + "/champion_icons/" + champ + ".png")):
+        champName = CHAMPION_LIST["data"][champ]["name"]
         IMG_NAME = pygame.image.load('{}.png'.format("champion_icons/" + champ))
-        label = FONT.render(champ, 1, white)
-
+        label = FONT.render(champName, 1, white)
+        labeltext = label.get_rect()
+        labeltext.center = (x+CHAMPION_WIDTH/2, y+ CHAMPION_HEIGHT+10)
         gameDisplay.blit(IMG_NAME, (x,y))
-        gameDisplay.blit(label, (x, y + CHAMPION_HEIGHT + 5))
+        gameDisplay.blit(label, labeltext)
 
 if __name__ == '__main__':
     main()
