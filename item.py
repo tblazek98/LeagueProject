@@ -43,32 +43,37 @@ Champion1 = ''
 Champion2 = ''
 
 # Parse through items and add data to ITEM_SET
-ITEM_LIST = open('item_8.6.json')
-ITEM_LIST = json.loads(ITEM_LIST.read())
+def createItemList():
+    ITEM_LIST = open('item_8.6.json')
+    ITEM_LIST = json.loads(ITEM_LIST.read())
 
-BASE_STATS = ITEM_LIST["basic"]["stats"]
-CURR_STATS = BASE_STATS
-for thing in ITEM_LIST["data"].keys():
+    BASE_STATS = ITEM_LIST["basic"]["stats"]
+    CURR_STATS = BASE_STATS
+    for thing in ITEM_LIST["data"].keys():
     # If on Summoner Rift
-    if ITEM_LIST["data"][thing]["maps"]["11"]:
-        temp_dict = {};
-        for key in ITEM_LIST["basic"].keys():
-            if key in ITEM_LIST["data"][thing].keys():
-                temp_dict[key] = ITEM_LIST["data"][thing][key]
-            else:
-                temp_dict[key] = ""
-        temp_dict["id"] = thing
-        ITEM_SET[ITEM_LIST["data"][thing]["name"] ] = temp_dict
+        if ITEM_LIST["data"][thing]["maps"]["11"]:
+            temp_dict = {};
+            for key in ITEM_LIST["basic"].keys():
+                if key in ITEM_LIST["data"][thing].keys():
+                    temp_dict[key] = ITEM_LIST["data"][thing][key]
+                else:
+                    temp_dict[key] = ""
+            temp_dict["id"] = thing
+            ITEM_SET[ITEM_LIST["data"][thing]["name"] ] = temp_dict
+    return ITEM_SET, CURR_STATS
+
 # Parse through items and add data to CHAMP_SET
-CHAMPION_LIST = open('champion.json')
-CHAMPION_LIST = json.loads(CHAMPION_LIST.read())
-for stat in CHAMPION_LIST["data"]["Aatrox"]["stats"].keys():
-    CURR_STATS[stat] = 0
-for champ in CHAMPION_LIST["data"].keys():
-    if champ == "MonkeyKing":
-        CHAMPION_LIST ["Wukong"] = CHAMPION_LIST["data"][champ]
-    else:
-        CHAMPION_LIST [champ] = CHAMPION_LIST["data"][champ]
+def createChampList(CURR_STATS):
+    CHAMPION_LIST = open('champion.json')
+    CHAMPION_LIST = json.loads(CHAMPION_LIST.read())
+    for stat in CHAMPION_LIST["data"]["Aatrox"]["stats"].keys():
+        CURR_STATS[stat] = 0
+    for champ in CHAMPION_LIST["data"].keys():
+        if champ == "MonkeyKing":
+            CHAMPION_LIST ["Wukong"] = CHAMPION_LIST["data"][champ]
+        else:
+            CHAMPION_LIST [champ] = CHAMPION_LIST["data"][champ]
+    return CHAMPION_LIST
 # Classes
 class CheckBox:
     def __init__(self, x, y, w, h, text=''):
@@ -97,7 +102,7 @@ class CheckBox:
 
 
 class InputBox:
-    def __init__(self,x,y,w,h,text='',search=''):
+    def __init__(self,x,y,w,h,inputset, text='',search=''):
         self.rect = pygame.Rect(x,y,w,h)
         self.color = COLOR_INACTIVE
         self.text = text
@@ -107,11 +112,13 @@ class InputBox:
         self.type = search
         self.prev = text
         if self.type == "item":
-            self.set = ITEM_SET
+            self.set = inputset
         elif self.type.startswith("champion"):
-            self.set = CHAMPION_LIST
+            self.set = inputset
         self.type = search
-    def handle_event(self, event):
+    def handle_event(self, event, CURR_STATS, OrnnBool):
+        if self.type == "item":
+            self.set = ITEM_SET
         if event.type == pygame.MOUSEBUTTONDOWN:
             if self.rect.collidepoint(event.pos):
                 self.active = not self.active
@@ -122,19 +129,19 @@ class InputBox:
             if self.active:
                 if event.key == pygame.K_RETURN:
                     if self.type == "item":
-                        if self.text in ITEM_SET.keys() and len(CURR_ITEMS)<6:
-                            CURR_ITEMS.append(ITEM_SET[self.text])
-                            for stat in ITEM_SET[self.text]["stats"].keys():
-                                CURR_STATS[stat] += ITEM_SET[self.text]["stats"][stat]
+                        if self.text in self.set.keys() and len(CURR_ITEMS)<6:
+                            CURR_ITEMS.append(self.set[self.text])
+                            for stat in self.set[self.text]["stats"].keys():
+                                CURR_STATS[stat] += self.set[self.text]["stats"][stat]
                             self.text = ''
                             self.suggestions = []
                     elif (self.type.startswith("champion")):
-                        for champ in CHAMPION_LIST["data"]:
-                            if self.text == CHAMPION_LIST["data"][champ]["name"]:
-                                for stat, value in CHAMPION_LIST["data"][champ]["stats"].items():
+                        for champ in self.set["data"]:
+                            if self.text == self.set["data"][champ]["name"]:
+                                for stat, value in self.set["data"][champ]["stats"].items():
                                     CURR_STATS[stat] += round(value, 2)
                                 if self.prev != '':
-                                    for stat,value in CHAMPION_LIST["data"][self.prev]["stats"].items():
+                                    for stat,value in self.set["data"][self.prev]["stats"].items():
                                         CURR_STATS[stat] -= round(value, 2)
                                 self.prev = champ
                                 self.text = ''
@@ -155,9 +162,12 @@ class InputBox:
                 elif 97 <= event.key <= 122 or event.key == 39 or event.key == 32: #If letter, space, or '
                     self.text += event.unicode
                 if self.type.startswith("champion"):
-                    self.suggestions = [ self.set["data"][thing]["name"] for thing in self.set["data"] if self.set["data"][thing]["name"].startswith(self.text) ]
+                    self.suggestions = [ self.set["data"][thing]["name"] for thing in self.set["data"] if self.set["data"][thing]["name"].lower().startswith(self.text.lower()) ]
                 else:
-                    self.suggestions = [ string for string in self.set.keys() if string.startswith(self.text) ]
+                    if OrnnBool:
+                        self.suggestions = [ string for string in self.set.keys() if string.lower().startswith(self.text.lower())]
+                    else:
+                        self.suggestions = [ string for string in self.set.keys() if string.lower().startswith(self.text.lower()) and self.set[string]["requiredAlly"] != "Ornn"]
                 self.suggestions = sorted(self.suggestions)
                 self.txt_surface = FONT.render(self.text, True, self.color)
 
@@ -221,8 +231,10 @@ def main():
     TYPE_BOX_Y = 25
     TYPE_BOX_WIDTH = 140
     TYPE_BOX_HEIGHT = 32
-    champ_box = InputBox (TYPE_BOX_X, TYPE_BOX_Y, TYPE_BOX_WIDTH, TYPE_BOX_HEIGHT, search = "champion1")
-    search_box = InputBox (TYPE_BOX_X, (TYPE_BOX_Y + D_HEIGHT)/2, TYPE_BOX_WIDTH, TYPE_BOX_HEIGHT, search="item")
+    INIT_ITEM_SET, CURR_STATS = createItemList()
+    CHAMPION_LIST = createChampList(CURR_STATS)
+    champ_box = InputBox (TYPE_BOX_X, TYPE_BOX_Y, TYPE_BOX_WIDTH, TYPE_BOX_HEIGHT, CHAMPION_LIST, search = "champion1")
+    search_box = InputBox (TYPE_BOX_X, (TYPE_BOX_Y + D_HEIGHT)/2, TYPE_BOX_WIDTH, TYPE_BOX_HEIGHT, INIT_ITEM_SET, search="item")
     ornn_checkbox = CheckBox (TYPE_BOX_X - TYPE_BOX_HEIGHT - 15, (TYPE_BOX_Y + D_HEIGHT)/2 + 3, TYPE_BOX_HEIGHT-6, TYPE_BOX_HEIGHT-6, text="Ornn items?")
     input_boxes = [search_box, champ_box]
     done = False
@@ -231,7 +243,7 @@ def main():
             if event.type == pygame.QUIT:
                 done = True
             for box in input_boxes:
-                box.handle_event(event)
+                box.handle_event(event, CURR_STATS, ornn_checkbox.selected)
             ornn_checkbox.handle_event(event)
 
 
@@ -240,8 +252,12 @@ def main():
             box.update()
 
         gameDisplay.fill((30,30,30))
+        
+        # Ornn Changes
         ornn_checkbox.draw()
+        ITEM_SET = INIT_ITEM_SET
 
+        # Totaling gold
         totalGold = 0;
         search_box.draw(gameDisplay)
         for box in input_boxes:
